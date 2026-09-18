@@ -1,0 +1,8 @@
+source;share/explorer/hook/cmake_prefix_path.ps1
+source;share/explorer/hook/cmake_prefix_path.dsv
+source;share/explorer/hook/cmake_prefix_path.sh
+source;share/explorer/local_setup.bash
+source;share/explorer/local_setup.dsv
+source;share/explorer/local_setup.ps1
+source;share/explorer/local_setup.sh
+source;share/explorer/local_setup.zsh
