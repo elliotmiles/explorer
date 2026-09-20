@@ -8,18 +8,29 @@ endif()
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(nav_msgs REQUIRED)
+find_package(visualization_msgs REQUIRED)
 # uncomment the following section in order to fill in
 # further dependencies manually.
 # find_package(<dependency> REQUIRED)
 
 add_executable(publisher src/publisher.cpp)
+add_executable(planner src/planner.cpp)
 
 ament_target_dependencies(publisher
   rclcpp
+  nav_msgs
+)
+
+ament_target_dependencies(planner
+  rclcpp
+  nav_msgs
+  visualization_msgs
 )
 
 install(TARGETS
   publisher
+  planner
   DESTINATION lib/${PROJECT_NAME}
 )
 
