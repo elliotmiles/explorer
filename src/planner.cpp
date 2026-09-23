@@ -22,6 +22,10 @@ struct GridCell {
     int y;
 };
 
+struct WorldPoint {
+    double x;
+    double y;
+};
 
 GridCell coords(int width, int i) {
     int y = i / width;
@@ -31,32 +35,12 @@ GridCell coords(int width, int i) {
     return coords;
 }
 
-bool check_east(const nav_msgs::msg::OccupancyGrid& msg, int i) {
-    if (msg.data[i+1] == -1) {
-        return true;
-    }
-    else return false;
-}
+WorldPoint grid_to_world(GridCell& cell_coords, double resolution, double origin_x, double origin_y) {
+    int world_x = origin_x + (cell_coords.x + 0.5) * resolution;
+    int world_y = origin_y + (cell_coords.y + 0.5) * resolution;
 
-bool check_south(const nav_msgs::msg::OccupancyGrid& msg, int i) {
-    if (msg.data[i - (msg.info.width)] == -1) {
-        return true;
-    }
-    else return false;
-}
-
-bool check_west(const nav_msgs::msg::OccupancyGrid& msg, int i) {
-    if (msg.data[i-1] == -1) {
-        return true;
-    }
-    else return false;
-}
-
-bool check_north(const nav_msgs::msg::OccupancyGrid& msg, int i) {
-    if (msg.data[i + (msg.info.width)] == -1) {
-        return true;
-    }
-    else return false;
+    WorldPoint coords = {world_x, world_y};
+    return coords;
 }
 
 
@@ -72,89 +56,23 @@ std::vector<GridCell> detect_frontiers(const nav_msgs::msg::OccupancyGrid& msg) 
             continue;
         }
 
-        // all past this point are unoccupied cells 
-        
-        // bottom left corner
-        if (i == 0) {
-            if (msg.data[i] == 0 && (check_north(msg, i) == true || check_east(msg, i) == true)) {
-                frontiers_arr.push_back(coords(msg.info.width, i));
-                continue;
-            }
-            else continue;
+        GridCell cell_coords = coords(msg.info.width, i);
+        // check below
+        if ((cell_coords.y) > 0 && msg.data[i - msg.info.width] == -1) {
+            frontiers_arr.push_back(cell_coords);
         }
-
-        // bottom right corner
-        if (i == (msg.info.width - 1)) {
-            if (msg.data[i] == 0 && (check_north(msg, i) == true || check_west(msg, i) == true)) {
-                frontiers_arr.push_back(coords(msg.info.width, i));
-                continue;
-            }
-            else continue;
+        // check above
+        else if ((cell_coords.y) < (msg.info.height - 1) && msg.data[i + msg.info.width] == -1) {
+            frontiers_arr.push_back(cell_coords);
         }
-
-        // top right corner
-        if (i == (msg.data.size() - 1)) {
-            if (msg.data[i] == 0 && (check_south(msg, i) == true || check_west(msg, i) == true)) {
-                frontiers_arr.push_back(coords(msg.info.width, i));
-                continue;
-            }
-            else continue;
+        // check left
+        else if ((cell_coords.x) > 0 && msg.data[i - 1] == -1) {
+            frontiers_arr.push_back(cell_coords);
         }
-
-        // top left corner
-        if (i == msg.data.size() - (msg.info.width)) {
-            if (msg.data[i] == 0 && (check_south(msg, i) == true || check_east(msg, i) == true)) {
-                frontiers_arr.push_back(coords(msg.info.width, i));
-                continue;
-            }
-            else continue;
+        // check right
+        else if ((cell_coords.x) < (msg.info.width - 1) && msg.data[i + 1] == -1) {
+            frontiers_arr.push_back(cell_coords);
         }
-
-        // bottom row
-        if (i < msg.info.width) {
-            if (msg.data[i] == 0 && (check_west(msg, i) || check_north(msg, i) || check_east(msg, i) == true)) {
-                frontiers_arr.push_back(coords(msg.info.width, i));
-                continue;
-            }
-            else continue;
-        }
-
-        // top row
-        if (i > (msg.data.size() - msg.info.width - 1)) {
-            if (msg.data[i] == 0 && (check_west(msg, i) || check_south(msg, i) || check_east(msg, i) == true)) {
-                frontiers_arr.push_back(coords(msg.info.width, i));
-                continue;
-            }
-            else continue;
-        }
-
-        // left column
-        if (i % msg.info.width == 0) {
-            if (msg.data[i] == 0 && (check_west(msg, i) || check_north(msg, i) || check_east(msg, i) == true)) {
-                frontiers_arr.push_back(coords(msg.info.width, i));
-                continue;
-            }
-            else continue;
-        }
-
-        // right column
-        if ((i+1) % msg.info.width == 0) {
-            if (msg.data[i] == 0 && (check_west(msg, i) || check_north(msg, i) || check_east(msg, i) == true)) {
-                frontiers_arr.push_back(coords(msg.info.width, i));
-                continue;
-            }
-            else continue;
-        }
-
-        // central cells (north south east and west all available)
-        else {
-            if (msg.data[i] == 0 && (check_west(msg, i) || check_north(msg, i) || check_east(msg, i) == true || check_south(msg, i) == true)) {
-                frontiers_arr.push_back(coords(msg.info.width, i));
-                continue;
-            }
-            else continue;
-        }
-
     }
 
     return frontiers_arr;
@@ -181,7 +99,9 @@ class ExplorerNode : public rclcpp::Node {
 
                 visualization_msgs::msg::Marker marker;
 
-                marker.header.frame_id = "map";
+                WorldPoint world_coords = grid_to_world(frontiers_arr[i], msg->info.resolution, msg->info.origin.position.x, msg->info.origin.position.y);
+
+                marker.header.frame_id = msg->header.frame_id;
                 marker.header.stamp = this->get_clock()->now();
 
                 marker.ns = "frontiers";
@@ -190,8 +110,8 @@ class ExplorerNode : public rclcpp::Node {
                 marker.type = visualization_msgs::msg::Marker::SPHERE;
                 marker.action = visualization_msgs::msg::Marker::ADD;
 
-                marker.pose.position.x = frontiers_arr[i].x;
-                marker.pose.position.y = frontiers_arr[i].y;
+                marker.pose.position.x = world_coords.x;
+                marker.pose.position.y = world_coords.y;
                 marker.pose.position.z = 0.0;
 
                 marker.pose.orientation.w = 1.0;
