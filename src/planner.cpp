@@ -32,28 +32,28 @@ GridCell coords(int width, int i) {
 }
 
 bool check_east(const nav_msgs::msg::OccupancyGrid& msg, int i) {
-    if (msg->data[i+1] == -1) {
+    if (msg.data[i+1] == -1) {
         return true;
     }
     else return false;
 }
 
 bool check_south(const nav_msgs::msg::OccupancyGrid& msg, int i) {
-    if (msg->data[i - (msg->info.width)] == -1) {
+    if (msg.data[i - (msg.info.width)] == -1) {
         return true;
     }
     else return false;
 }
 
 bool check_west(const nav_msgs::msg::OccupancyGrid& msg, int i) {
-    if (msg->data[i-1] == -1) {
+    if (msg.data[i-1] == -1) {
         return true;
     }
     else return false;
 }
 
 bool check_north(const nav_msgs::msg::OccupancyGrid& msg, int i) {
-    if (msg->data[i + (msg->info.width)] == -1) {
+    if (msg.data[i + (msg.info.width)] == -1) {
         return true;
     }
     else return false;
@@ -67,8 +67,8 @@ std::vector<GridCell> detect_frontiers(const nav_msgs::msg::OccupancyGrid& msg) 
 
     std::vector<GridCell> frontiers_arr; 
 
-    for(int i = 0; i < msg->data.size(); i++) {
-        if (msg->data[i] != 0) {
+    for(int i = 0; i < msg.data.size(); i++) {
+        if (msg.data[i] != 0) {
             continue;
         }
 
@@ -76,71 +76,71 @@ std::vector<GridCell> detect_frontiers(const nav_msgs::msg::OccupancyGrid& msg) 
         
         // bottom left corner
         if (i == 0) {
-            if (msg->data[i] == 0 && (check_north(msg, i) == true || check_east(msg, i) == true)) {
-                frontiers_arr.push_back(coords(msg->info.width, i));
+            if (msg.data[i] == 0 && (check_north(msg, i) == true || check_east(msg, i) == true)) {
+                frontiers_arr.push_back(coords(msg.info.width, i));
                 continue;
             }
             else continue;
         }
 
         // bottom right corner
-        if (i == (msg->info.width - 1)) {
-            if (msg->data[i] == 0 && (check_north(msg, i) == true || check_west(msg, i) == true)) {
-                frontiers_arr.push_back(coords(msg->info.width, i));
+        if (i == (msg.info.width - 1)) {
+            if (msg.data[i] == 0 && (check_north(msg, i) == true || check_west(msg, i) == true)) {
+                frontiers_arr.push_back(coords(msg.info.width, i));
                 continue;
             }
             else continue;
         }
 
         // top right corner
-        if (i == (msg->data.size() - 1)) {
-            if (msg->data[i] == 0 && (check_south(msg, i) == true || check_west(msg, i) == true)) {
-                frontiers_arr.push_back(coords(msg->info.width, i));
+        if (i == (msg.data.size() - 1)) {
+            if (msg.data[i] == 0 && (check_south(msg, i) == true || check_west(msg, i) == true)) {
+                frontiers_arr.push_back(coords(msg.info.width, i));
                 continue;
             }
             else continue;
         }
 
         // top left corner
-        if (i == msg->data.size() - (msg->info.width)) {
-            if (msg->data[i] == 0 && (check_south(msg, i) == true || check_east(msg, i) == true)) {
-                frontiers_arr.push_back(coords(msg->info.width, i));
+        if (i == msg.data.size() - (msg.info.width)) {
+            if (msg.data[i] == 0 && (check_south(msg, i) == true || check_east(msg, i) == true)) {
+                frontiers_arr.push_back(coords(msg.info.width, i));
                 continue;
             }
             else continue;
         }
 
         // bottom row
-        if (i < msg->info.width) {
-            if (msg->data[i] == 0 && (check_west(msg, i) || check_north(msg, i) || check_east(msg, i) == true)) {
-                frontiers_arr.push_back(coords(msg->info.width, i));
+        if (i < msg.info.width) {
+            if (msg.data[i] == 0 && (check_west(msg, i) || check_north(msg, i) || check_east(msg, i) == true)) {
+                frontiers_arr.push_back(coords(msg.info.width, i));
                 continue;
             }
             else continue;
         }
 
         // top row
-        if (i > msg->data.size() - msg) {
-            if (msg->data[i] == 0 && (check_west(msg, i) || check_south(msg, i) || check_east(msg, i) == true)) {
-                frontiers_arr.push_back(coords(msg->info.width, i));
+        if (i > (msg.data.size() - msg.info.width - 1)) {
+            if (msg.data[i] == 0 && (check_west(msg, i) || check_south(msg, i) || check_east(msg, i) == true)) {
+                frontiers_arr.push_back(coords(msg.info.width, i));
                 continue;
             }
             else continue;
         }
 
         // left column
-        if (i & msg->info.width == 0) {
-            if (msg->data[i] == 0 && (check_west(msg, i) || check_north(msg, i) || check_east(msg, i) == true)) {
-                frontiers_arr.push_back(coords(msg->info.width, i));
+        if (i % msg.info.width == 0) {
+            if (msg.data[i] == 0 && (check_west(msg, i) || check_north(msg, i) || check_east(msg, i) == true)) {
+                frontiers_arr.push_back(coords(msg.info.width, i));
                 continue;
             }
             else continue;
         }
 
         // right column
-        if ((i-1) % msg->info.width == 0) {
-            if (msg->data[i] == 0 && (check_west(msg, i) || check_north(msg, i) || check_east(msg, i) == true)) {
-                frontiers_arr.push_back(coords(msg->info.width, i));
+        if ((i+1) % msg.info.width == 0) {
+            if (msg.data[i] == 0 && (check_west(msg, i) || check_north(msg, i) || check_east(msg, i) == true)) {
+                frontiers_arr.push_back(coords(msg.info.width, i));
                 continue;
             }
             else continue;
@@ -148,8 +148,8 @@ std::vector<GridCell> detect_frontiers(const nav_msgs::msg::OccupancyGrid& msg) 
 
         // central cells (north south east and west all available)
         else {
-            if (msg->data[i] == 0 && (check_west(msg, i) || check_north(msg, i) || check_east(msg, i) == true || check_south(msg, i) == true)) {
-                frontiers_arr.push_back(coords(msg->info.width, i));
+            if (msg.data[i] == 0 && (check_west(msg, i) || check_north(msg, i) || check_east(msg, i) == true || check_south(msg, i) == true)) {
+                frontiers_arr.push_back(coords(msg.info.width, i));
                 continue;
             }
             else continue;
@@ -173,7 +173,7 @@ class ExplorerNode : public rclcpp::Node {
 
     private:
         void callback(nav_msgs::msg::OccupancyGrid::SharedPtr msg) {
-            std::vector<GridCell> frontiers_arr = detect_frontiers(msg);
+            std::vector<GridCell> frontiers_arr = detect_frontiers(*msg); // dereference because msg is a SharedPtr
 
             visualization_msgs::msg::MarkerArray marker_array;
 
