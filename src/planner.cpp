@@ -122,9 +122,9 @@ class ExplorerNode : public rclcpp::Node {
 
                 marker.pose.orientation.w = 1.0;
 
-                marker.scale.x = 0.2;
-                marker.scale.y = 0.2;
-                marker.scale.z = 0.2;
+                marker.scale.x = 0.05;
+                marker.scale.y = 0.05;
+                marker.scale.z = 0.05;
 
                 marker.color.r = 0.0;
                 marker.color.g = 0.0;
