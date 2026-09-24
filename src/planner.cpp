@@ -35,9 +35,10 @@ GridCell coords(int width, int i) {
     return coords;
 }
 
+// takes in the local gridcell coords relative to map origin, then outputs coords in the /map frame
 WorldPoint grid_to_world(GridCell& cell_coords, double resolution, double origin_x, double origin_y) {
-    int world_x = origin_x + (cell_coords.x + 0.5) * resolution;
-    int world_y = origin_y + (cell_coords.y + 0.5) * resolution;
+    double world_x = origin_x + (cell_coords.x + 0.5) * resolution;
+    double world_y = origin_y + (cell_coords.y + 0.5) * resolution;
 
     WorldPoint coords = {world_x, world_y};
     return coords;
@@ -47,22 +48,22 @@ WorldPoint grid_to_world(GridCell& cell_coords, double resolution, double origin
 
 // takes in the OccGrid msg, outputs a vector containing the coords of all "frontier" cells
 //where "frontier" means the cell is unoccupied and at least one of its neighbours is unexplored
-std::vector<GridCell> detect_frontiers(const nav_msgs::msg::OccupancyGrid& msg) {
+std::vector<GridCell> detect_frontiers(const nav_msgs::msg::OccupancyGrid& msg, int& width, int& height) {
 
     std::vector<GridCell> frontiers_arr; 
 
-    for(int i = 0; i < msg.data.size(); i++) {
+    for(std::size_t i = 0; i < msg.data.size(); i++) { // using std::size_t to avoid errors when comparing uint and int
         if (msg.data[i] != 0) {
             continue;
         }
 
-        GridCell cell_coords = coords(msg.info.width, i);
+        GridCell cell_coords = coords(width, i);
         // check below
-        if ((cell_coords.y) > 0 && msg.data[i - msg.info.width] == -1) {
+        if ((cell_coords.y) > 0 && msg.data[i - width] == -1) {
             frontiers_arr.push_back(cell_coords);
         }
         // check above
-        else if ((cell_coords.y) < (msg.info.height - 1) && msg.data[i + msg.info.width] == -1) {
+        else if ((cell_coords.y) < (height - 1) && msg.data[i + width] == -1) {
             frontiers_arr.push_back(cell_coords);
         }
         // check left
@@ -70,7 +71,7 @@ std::vector<GridCell> detect_frontiers(const nav_msgs::msg::OccupancyGrid& msg) 
             frontiers_arr.push_back(cell_coords);
         }
         // check right
-        else if ((cell_coords.x) < (msg.info.width - 1) && msg.data[i + 1] == -1) {
+        else if ((cell_coords.x) < (width - 1) && msg.data[i + 1] == -1) {
             frontiers_arr.push_back(cell_coords);
         }
     }
@@ -91,11 +92,16 @@ class ExplorerNode : public rclcpp::Node {
 
     private:
         void callback(nav_msgs::msg::OccupancyGrid::SharedPtr msg) {
-            std::vector<GridCell> frontiers_arr = detect_frontiers(*msg); // dereference because msg is a SharedPtr
+
+            // convert to int to avoid comparing uint with int
+            int width = static_cast<int>(msg->info.width);
+            int height = static_cast<int>(msg->info.height);
+
+            std::vector<GridCell> frontiers_arr = detect_frontiers(*msg, width, height); // dereference because msg is a SharedPtr
 
             visualization_msgs::msg::MarkerArray marker_array;
 
-            for (int i = 0; i < frontiers_arr.size(); i++) {
+            for (std::size_t i = 0; i < frontiers_arr.size(); i++) { // using std::size_t to avoid errors when comparing uint and int
 
                 visualization_msgs::msg::Marker marker;
 
@@ -120,9 +126,9 @@ class ExplorerNode : public rclcpp::Node {
                 marker.scale.y = 0.2;
                 marker.scale.z = 0.2;
 
-                marker.color.r = 1.0;
+                marker.color.r = 0.0;
                 marker.color.g = 0.0;
-                marker.color.b = 0.0;
+                marker.color.b = 1.0;
                 marker.color.a = 1.0;
 
                 marker_array.markers.push_back(marker);

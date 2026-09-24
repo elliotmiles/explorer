@@ -1,7 +1,7 @@
 // this should just publish occupancy grid data 
 
-// INPUTS (sub): /map
-// OUTPUTS (pub): /occupancy_grid_custom (of standard occupancy grid type)
+// INPUTS (sub): none
+// OUTPUTS (pub): /map (of standard occupancy grid type)
 
 
 #include <rclcpp/rclcpp.hpp>
@@ -25,7 +25,7 @@ class GridPublisherNode : public rclcpp::Node {
             auto occupancy_grid_msg = nav_msgs::msg::OccupancyGrid();
 
             occupancy_grid_msg.header.stamp = rclcpp::Clock().now();
-            occupancy_grid_msg.header.frame_id = "map_frame";
+            occupancy_grid_msg.header.frame_id = "map";
 
             occupancy_grid_msg.info.resolution = 1;
 
