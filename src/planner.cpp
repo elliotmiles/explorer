@@ -79,6 +79,16 @@ std::vector<GridCell> detect_frontiers(const nav_msgs::msg::OccupancyGrid& msg, 
     return frontiers_arr;
 }
 
+std::vector<std::vector<GridCell>> group_clusters(std::vector<GridCell>& frontiers_arr) {
+    std::vector<std::vector<GridCell>> clusters_arr;
+
+    for (std::size_t i = 0; i < frontiers_arr.size(); i++) {
+        for (std::size_t i = 0; i < clusters_arr.size)
+    }
+
+
+}
+
 class ExplorerNode : public rclcpp::Node {
     public:
         ExplorerNode() : Node("explorer") {
@@ -98,6 +108,8 @@ class ExplorerNode : public rclcpp::Node {
             int height = static_cast<int>(msg->info.height);
 
             std::vector<GridCell> frontiers_arr = detect_frontiers(*msg, width, height); // dereference because msg is a SharedPtr
+
+            std::vector<std::vector<GridCell>> clusters_arr = group_clusters(frontiers_arr);
 
             visualization_msgs::msg::MarkerArray marker_array;
 
