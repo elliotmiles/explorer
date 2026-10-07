@@ -84,17 +84,41 @@ std::vector<std::vector<GridCell>> group_clusters(std::vector<GridCell>& frontie
     std::vector<std::vector<GridCell>> clusters_arr;
 
     for (std::size_t i = 0; i < frontiers_arr.size(); i++) {
+        
         // if (this cell is already in clusters_arr) {continue}
+        for (std::size_t j = 0; j < clusters_arr.size(); j++) {
+            for (std::size_t k = 0; k < clusters_arr[j].size(); k++) {
+                if (frontiers_arr[i].id == clusters_arr[j][k].id) {continue;}
+            }
+        }
 
-        // else
+        // this cell is not already in clusters_arr, so check all 8 neighbours to determine whether they are a frontier
+        for (std::size_t j = 0; j < frontiers_arr.size(); j++) {
+            if (frontiers_arr[j].x == (frontiers_arr[i].x + 1) || // east
+                frontiers_arr[j].y == (frontiers_arr[i].y + 1) || // north
+                frontiers_arr[j].x == (frontiers_arr[i].x - 1) || // west
+                frontiers_arr[j].y == (frontiers_arr[i].y - 1) || // south
+                (frontiers_arr[j].x == (frontiers_arr[i].x + 1)) && (frontiers_arr[j].y == (frontiers_arr[i].y + 1)) || // north east
+                (frontiers_arr[j].x == (frontiers_arr[i].x - 1)) && (frontiers_arr[j].y == (frontiers_arr[i].y + 1)) || // north west
+                (frontiers_arr[j].x == (frontiers_arr[i].x - 1)) && (frontiers_arr[j].y == (frontiers_arr[i].y - 1)) || // south west
+                (frontiers_arr[j].x == (frontiers_arr[i].x + 1)) && (frontiers_arr[j].y == (frontiers_arr[i].y - 1)) || // south east
+                ) {
 
-            // if (frontier north exists) {if north is in cluster_arr, just add current cell, else add both}
-
-            // if (frontier south exists) {if south is in cluster_arr, just add current cell, else add both}
-
-            // if (frontier east exists) {if east is in cluster_arr, just add current cell, else add both}
-
-            // if (frontier west exists) {if west is in cluster_arr, just add current cell, else add both}
+                
+                // check if the neighbour is already in clusters_arr
+                for (std::size_t k = 0; k < clusters_arr.size(); k++) {
+                    for (std::size_t l = 0; l < clusters_arr[k].size(); l++) {
+                        if (frontiers_arr[j].id == clusters_arr[k][l].id) {
+                            // the neighbour already is in clusters_arr, so add the current cell to the existing cluster
+                            clusters_arr[k].push_back(frontiers_arr[i]);
+                            continue;
+                        }
+                    }
+                }
+                // neither cell is in clusters_arr, so add both to a new cluster
+                clusters_arr.push_back({frontiers_arr[i], frontiers_arr[j]});
+            }
+        }
     }
 
 
