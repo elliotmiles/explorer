@@ -101,7 +101,7 @@ std::vector<std::vector<GridCell>> group_clusters(std::vector<GridCell>& frontie
                 (frontiers_arr[j].x == (frontiers_arr[i].x + 1)) && (frontiers_arr[j].y == (frontiers_arr[i].y + 1)) || // north east
                 (frontiers_arr[j].x == (frontiers_arr[i].x - 1)) && (frontiers_arr[j].y == (frontiers_arr[i].y + 1)) || // north west
                 (frontiers_arr[j].x == (frontiers_arr[i].x - 1)) && (frontiers_arr[j].y == (frontiers_arr[i].y - 1)) || // south west
-                (frontiers_arr[j].x == (frontiers_arr[i].x + 1)) && (frontiers_arr[j].y == (frontiers_arr[i].y - 1)) || // south east
+                (frontiers_arr[j].x == (frontiers_arr[i].x + 1)) && (frontiers_arr[j].y == (frontiers_arr[i].y - 1)) // south east
                 ) {
 
                 
@@ -121,7 +121,97 @@ std::vector<std::vector<GridCell>> group_clusters(std::vector<GridCell>& frontie
         }
     }
 
+    return clusters_arr;
 
+}
+
+double sort_x(std::vector<GridCell>& item_list) {
+    std::vector<double> x_list;
+
+    for(const auto& i : item_list) {
+        x_list.push_back(item_list[i].x)
+    }
+
+    std::sort(x_list.begin(), x_list.end());
+
+    return x_list;
+}
+
+double sort_y(std::vector<GridCell>& item_list) {
+    std::vector<double> y_list;
+
+    for(const auto& i : item_list) {
+        y_list.push_back(item_list[i].y)
+    }
+
+    std::sort(y_list.begin(), y_list.end());
+
+    return y_list;
+}
+
+// find the central cell for each cluster
+std::vector<GridCell> find_centres(&std::vector<std::vector<GridCell>>& clusters_arr) {
+
+    std::vector<GridCell> cluster_centres;
+    // for each cluster...
+    for (std::size_t i = 0; i < clusters_arr.size(); i++) {
+        
+        GridCell central_cell;
+        central_cell.id = i;
+
+        // find median X
+        std::vector<double> x_list;
+
+        for (std::size_t j = 0; j < cluster_arr[i].size(); j++) {
+            x_list.push_back(cluster_arr[i][j].x);
+        }
+
+        std::sort(x_list.begin(), x_list.end());
+
+        size_t n = x_list.size();
+
+        if (n % 2 == 1) {
+            // odd number of elements
+            central_cell.x = x_list[n / 2];
+        }
+        else {
+            // even number of elements
+            central_cell.x = ((x_list[n / (2 - 1)] + x_list[n / 2]) / 2.0);
+        }
+
+        // find median Y
+        std::vector<double> y_list;
+
+        for (std::size_t j = 0; j < cluster_arr[i].size(); j++) {
+            y_list.push_back(cluster_arr[i][j].y);
+        }
+
+        std::sort(y_list.begin(), y_list.end());
+
+        size_t n = y_list.size();
+
+        if (n % 2 == 1) {
+            // odd number of elements
+            central_cell.y = y_list[n / 2];
+        }
+        else {
+            // even number of elements
+            central_cell.y = ((y_list[n / (2 - 1)] + y_list[n / 2]) / 2.0);
+        }
+
+        cluster_centres.push_back(central_cell);
+    }
+
+    return cluster_centres;
+}
+
+GridCell select_cluster(std::vector<GridCell>& cluster_centres) {
+    double alpha = 0.5;
+    double beta = 0.5;
+    
+    for (const auto& i : cluster_centres) {
+        // need to use a standardised sort function
+    }
 }
 
 class ExplorerNode : public rclcpp::Node {
