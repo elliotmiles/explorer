@@ -27,11 +27,11 @@ struct WorldPoint {
     double y;
 };
 
-GridCell coords(int width, int i) {
+GridCell coords(int id, int width, int i) {
     int y = i / width;
     int x = i % width;
 
-    GridCell coords = {x, y};
+    GridCell coords = {id, x, y};
     return coords;
 }
 
@@ -79,11 +79,22 @@ std::vector<GridCell> detect_frontiers(const nav_msgs::msg::OccupancyGrid& msg, 
     return frontiers_arr;
 }
 
+// takes the vector of frontier gridcells as an input, and returns a vector of vector of gridcells. Each of these vectors represents a cluster.
 std::vector<std::vector<GridCell>> group_clusters(std::vector<GridCell>& frontiers_arr) {
     std::vector<std::vector<GridCell>> clusters_arr;
 
     for (std::size_t i = 0; i < frontiers_arr.size(); i++) {
-        for (std::size_t i = 0; i < clusters_arr.size)
+        // if (this cell is already in clusters_arr) {continue}
+
+        // else
+
+            // if (frontier north exists) {if north is in cluster_arr, just add current cell, else add both}
+
+            // if (frontier south exists) {if south is in cluster_arr, just add current cell, else add both}
+
+            // if (frontier east exists) {if east is in cluster_arr, just add current cell, else add both}
+
+            // if (frontier west exists) {if west is in cluster_arr, just add current cell, else add both}
     }
 
 
