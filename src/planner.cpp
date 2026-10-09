@@ -15,9 +15,17 @@
 #include <visualization_msgs/msg/marker.hpp>
 #include <visualization_msgs/msg/marker_array.hpp>
 
+// for listening to the tf data
+#include <tf2_ros/buffer.h>
+#include <tf2_ros/transform_listener.h>
+#include <geometry_msgs/msg/transform_stamped.hpp>
+#include <tf2/exceptions.h>
+
 #include <vector>
+#include <cmath>
 
 struct GridCell {
+    int id;
     int x;
     int y;
 };
@@ -125,7 +133,7 @@ std::vector<std::vector<GridCell>> group_clusters(std::vector<GridCell>& frontie
 
 }
 
-double sort_x(std::vector<GridCell>& item_list) {
+std::vector<double> sort_x(std::vector<GridCell>& item_list) {
     std::vector<double> x_list;
 
     for(const auto& i : item_list) {
@@ -137,7 +145,7 @@ double sort_x(std::vector<GridCell>& item_list) {
     return x_list;
 }
 
-double sort_y(std::vector<GridCell>& item_list) {
+std::vector<double> sort_y(std::vector<GridCell>& item_list) {
     std::vector<double> y_list;
 
     for(const auto& i : item_list) {
@@ -150,68 +158,83 @@ double sort_y(std::vector<GridCell>& item_list) {
 }
 
 // find the central cell for each cluster
-std::vector<GridCell> find_centres(&std::vector<std::vector<GridCell>>& clusters_arr) {
+std::vector<std::vector<GridCell, double>> find_centres(std::vector<std::vector<GridCell>>& clusters_arr) {
 
-    std::vector<GridCell> cluster_centres;
+    std::vector<std::vector<GridCell, double>> cluster_centres;
     // for each cluster...
     for (std::size_t i = 0; i < clusters_arr.size(); i++) {
         
         GridCell central_cell;
         central_cell.id = i;
 
-        // find median X
-        std::vector<double> x_list;
+        x_list = sort_x(clusters_arr[i]);
 
-        for (std::size_t j = 0; j < cluster_arr[i].size(); j++) {
-            x_list.push_back(cluster_arr[i][j].x);
-        }
+        size_t num_x = x_list.size();
 
-        std::sort(x_list.begin(), x_list.end());
-
-        size_t n = x_list.size();
-
-        if (n % 2 == 1) {
+        if (num_x % 2 == 1) {
             // odd number of elements
-            central_cell.x = x_list[n / 2];
+            central_cell.x = x_list[num_x / 2];
         }
         else {
             // even number of elements
-            central_cell.x = ((x_list[n / (2 - 1)] + x_list[n / 2]) / 2.0);
+            central_cell.x = ((x_list[num_x / (2 - 1)] + x_list[num_x / 2]) / 2.0);
         }
 
         // find median Y
-        std::vector<double> y_list;
+        y_list = sort_y(clusters_arr[i]);
 
-        for (std::size_t j = 0; j < cluster_arr[i].size(); j++) {
-            y_list.push_back(cluster_arr[i][j].y);
-        }
+        size_t num_y = y_list.size();
 
-        std::sort(y_list.begin(), y_list.end());
-
-        size_t n = y_list.size();
-
-        if (n % 2 == 1) {
+        if (num_y % 2 == 1) {
             // odd number of elements
-            central_cell.y = y_list[n / 2];
+            central_cell.y = y_list[num_y / 2];
         }
         else {
             // even number of elements
-            central_cell.y = ((y_list[n / (2 - 1)] + y_list[n / 2]) / 2.0);
+            central_cell.y = ((y_list[num_y / (2 - 1)] + y_list[num_y / 2]) / 2.0);
         }
 
-        cluster_centres.push_back(central_cell);
+        cluster_centres.push_back({central_cell, num_x + num_y});
     }
 
     return cluster_centres;
 }
 
-GridCell select_cluster(std::vector<GridCell>& cluster_centres) {
+GridCell select_cluster(std::vector<std::vector<GridCell>>& cluster_centres) {
     double alpha = 0.5;
     double beta = 0.5;
-    
+
+    GridCell result;
+    result.id = 0;
+    std::vector<double> costs_list;
+
     for (const auto& i : cluster_centres) {
-        // need to use a standardised sort function
+
+        // find distance from robot to cluster centre
+        WorldPoint robot_pos = get_robot_position();
+
+        double x_dist = std::abs(robot_pos.x - i[0].x)
+        double y_dist = std::abs(robot_pos.y - i[0].y); 
+        
+        double distance = std::sqrt(std::pow(x_dist, 2) + std::pow(y_dist, 2));
+
+        double cost = (alpha * i[1]) - (beta * distance);
+        
+        costs_list.push_back(cost);
     }
+
+    std::vector<double> costs_sorted = std::sort(costs_list);
+
+    double best = costs_sorted[0];
+
+    for (const auto& j : costs_list) {
+        if (costs_sorted[0] == costs_list[j]) {
+            result.x = cluster_centres[0].x;
+            result.y = cluster_centres[0].y;
+        }
+    }
+
+    return result;
 }
 
 class ExplorerNode : public rclcpp::Node {
@@ -221,6 +244,10 @@ class ExplorerNode : public rclcpp::Node {
                 "/map", 10, std::bind(&ExplorerNode::callback, this, std::placeholders::_1));
 
             publisher_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("/frontiers", 10);
+
+            tf_buffer_ = std::make_unique<tf2_ros::Buffer>(this->get_clock());
+
+            tf_listener_ = std::make_shared<tf_ros::TransformListener>(*tf_buffer_)
         }
 
 
@@ -235,6 +262,10 @@ class ExplorerNode : public rclcpp::Node {
             std::vector<GridCell> frontiers_arr = detect_frontiers(*msg, width, height); // dereference because msg is a SharedPtr
 
             std::vector<std::vector<GridCell>> clusters_arr = group_clusters(frontiers_arr);
+
+            std::vector<std::vector<GridCell, double>> cluster_centres = find_centres(clusters_arr);
+
+            GridCell best_centre = select_cluster(cluster_centres);
 
             visualization_msgs::msg::MarkerArray marker_array;
 
@@ -274,6 +305,12 @@ class ExplorerNode : public rclcpp::Node {
             publisher_->publish(marker_array);
 
 
+        }
+        
+        WorldPoint get_robot_position() {
+            auto transform = tf_buffer_->lookupTransform("map", "base_link", tf2::TimePointZero);
+
+            return {transform.transform.translation.x, transform.transform.translation.y};
         }
 
 
