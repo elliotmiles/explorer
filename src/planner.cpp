@@ -23,6 +23,7 @@
 
 #include <vector>
 #include <cmath>
+#include <algorithm>
 
 struct GridCell {
     int id;
@@ -35,11 +36,16 @@ struct WorldPoint {
     double y;
 };
 
-GridCell coords(int id, int width, int i) {
+struct ClusterInfo {
+    GridCell centre_cell;
+    double cluster_size;
+};
+
+GridCell coords(int width, int i) {
     int y = i / width;
     int x = i % width;
 
-    GridCell coords = {id, x, y};
+    GridCell coords = {i, x, y};
     return coords;
 }
 
@@ -56,7 +62,7 @@ WorldPoint grid_to_world(GridCell& cell_coords, double resolution, double origin
 
 // takes in the OccGrid msg, outputs a vector containing the coords of all "frontier" cells
 //where "frontier" means the cell is unoccupied and at least one of its neighbours is unexplored
-std::vector<GridCell> detect_frontiers(const nav_msgs::msg::OccupancyGrid& msg, int& width, int& height) {
+std::vector<GridCell> detect_frontiers(const nav_msgs::msg::OccupancyGrid& msg, int width, int height) {
 
     std::vector<GridCell> frontiers_arr; 
 
@@ -102,17 +108,13 @@ std::vector<std::vector<GridCell>> group_clusters(std::vector<GridCell>& frontie
 
         // this cell is not already in clusters_arr, so check all 8 neighbours to determine whether they are a frontier
         for (std::size_t j = 0; j < frontiers_arr.size(); j++) {
-            if (frontiers_arr[j].x == (frontiers_arr[i].x + 1) || // east
-                frontiers_arr[j].y == (frontiers_arr[i].y + 1) || // north
-                frontiers_arr[j].x == (frontiers_arr[i].x - 1) || // west
-                frontiers_arr[j].y == (frontiers_arr[i].y - 1) || // south
-                (frontiers_arr[j].x == (frontiers_arr[i].x + 1)) && (frontiers_arr[j].y == (frontiers_arr[i].y + 1)) || // north east
-                (frontiers_arr[j].x == (frontiers_arr[i].x - 1)) && (frontiers_arr[j].y == (frontiers_arr[i].y + 1)) || // north west
-                (frontiers_arr[j].x == (frontiers_arr[i].x - 1)) && (frontiers_arr[j].y == (frontiers_arr[i].y - 1)) || // south west
-                (frontiers_arr[j].x == (frontiers_arr[i].x + 1)) && (frontiers_arr[j].y == (frontiers_arr[i].y - 1)) // south east
-                ) {
 
-                
+        
+            int dx = std::abs(frontiers_arr[j].x - frontiers_arr[i].x);
+            int dy = std::abs(frontiers_arr[j].y - frontiers_arr[i].y);
+
+            // if the absolute difference in x and the absolute difference in y is <= 1, then they are neighbours
+            if ((dx <= 1) && (dy <= 1) && ((dx != 0) || (dy != 0))) {
                 // check if the neighbour is already in clusters_arr
                 for (std::size_t k = 0; k < clusters_arr.size(); k++) {
                     for (std::size_t l = 0; l < clusters_arr[k].size(); l++) {
@@ -136,8 +138,8 @@ std::vector<std::vector<GridCell>> group_clusters(std::vector<GridCell>& frontie
 std::vector<double> sort_x(std::vector<GridCell>& item_list) {
     std::vector<double> x_list;
 
-    for(const auto& i : item_list) {
-        x_list.push_back(item_list[i].x)
+    for (const auto& i : item_list) {
+        x_list.push_back(i.x);
     }
 
     std::sort(x_list.begin(), x_list.end());
@@ -148,8 +150,8 @@ std::vector<double> sort_x(std::vector<GridCell>& item_list) {
 std::vector<double> sort_y(std::vector<GridCell>& item_list) {
     std::vector<double> y_list;
 
-    for(const auto& i : item_list) {
-        y_list.push_back(item_list[i].y)
+    for (const auto& i : item_list) {
+        y_list.push_back(i.y);
     }
 
     std::sort(y_list.begin(), y_list.end());
@@ -158,14 +160,17 @@ std::vector<double> sort_y(std::vector<GridCell>& item_list) {
 }
 
 // find the central cell for each cluster
-std::vector<std::vector<GridCell, double>> find_centres(std::vector<std::vector<GridCell>>& clusters_arr) {
+std::vector<std::vector<ClusterInfo>> find_centres(std::vector<std::vector<GridCell>>& clusters_arr) {
 
-    std::vector<std::vector<GridCell, double>> cluster_centres;
+    // create instances of ClusterInfo to store the coords of the centre of each cluster, and the size of each cluster
+    std::vector<std::vector<ClusterInfo>> cluster_obj;
     // for each cluster...
     for (std::size_t i = 0; i < clusters_arr.size(); i++) {
         
         GridCell central_cell;
         central_cell.id = i;
+
+        cluster_obj.centre_cell = central_cell;
 
         x_list = sort_x(clusters_arr[i]);
 
@@ -177,7 +182,7 @@ std::vector<std::vector<GridCell, double>> find_centres(std::vector<std::vector<
         }
         else {
             // even number of elements
-            central_cell.x = ((x_list[num_x / (2 - 1)] + x_list[num_x / 2]) / 2.0);
+            central_cell.x = x_list[(num_x - 1) / 2];
         }
 
         // find median Y
@@ -191,46 +196,46 @@ std::vector<std::vector<GridCell, double>> find_centres(std::vector<std::vector<
         }
         else {
             // even number of elements
-            central_cell.y = ((y_list[num_y / (2 - 1)] + y_list[num_y / 2]) / 2.0);
+            central_cell.y = y_list[num_y / 2];
         }
 
-        cluster_centres.push_back({central_cell, num_x + num_y});
+        cluster_obj.cluster_size = num_x + num_y;
     }
 
-    return cluster_centres;
+    return cluster_obj;
 }
 
-GridCell select_cluster(std::vector<std::vector<GridCell>>& cluster_centres) {
+GridCell select_cluster(std::vector<std::vector<GridCell>>& cluster_obj, WorldPoint& robot_pos, double resolution, double origin_x, double origin_y) {
     double alpha = 0.5;
     double beta = 0.5;
 
     GridCell result;
     result.id = 0;
     std::vector<double> costs_list;
+    double best = 10000000;
 
-    for (const auto& i : cluster_centres) {
+    for (const auto& i : cluster_obj) {
 
-        // find distance from robot to cluster centre
-        WorldPoint robot_pos = get_robot_position();
+        WorldPoint centre_cell_world = grid_to_world(i.centre_cell, resolution, origin_x, origin_y);
 
-        double x_dist = std::abs(robot_pos.x - i[0].x)
-        double y_dist = std::abs(robot_pos.y - i[0].y); 
+        double x_dist = std::abs(robot_pos.x - centre_cell_world.x);
+        double y_dist = std::abs(robot_pos.y - centre_cell_world.y); 
         
         double distance = std::sqrt(std::pow(x_dist, 2) + std::pow(y_dist, 2));
 
-        double cost = (alpha * i[1]) - (beta * distance);
+        double cost = (alpha * distance) - (beta * i.cluster_size);
+
+        if (cost < best) {
+            best = cost;
+        }
         
         costs_list.push_back(cost);
     }
 
-    std::vector<double> costs_sorted = std::sort(costs_list);
-
-    double best = costs_sorted[0];
-
     for (const auto& j : costs_list) {
-        if (costs_sorted[0] == costs_list[j]) {
-            result.x = cluster_centres[0].x;
-            result.y = cluster_centres[0].y;
+        if (best == j) {
+            result.x = cluster_obj.centre_cell.x;
+            result.y = cluster_obj.centre_cell.y;
         }
     }
 
@@ -247,7 +252,7 @@ class ExplorerNode : public rclcpp::Node {
 
             tf_buffer_ = std::make_unique<tf2_ros::Buffer>(this->get_clock());
 
-            tf_listener_ = std::make_shared<tf_ros::TransformListener>(*tf_buffer_)
+            tf_listener_ = std::make_shared<tf_ros2::TransformListener>(*tf_buffer_)
         }
 
 
@@ -263,9 +268,12 @@ class ExplorerNode : public rclcpp::Node {
 
             std::vector<std::vector<GridCell>> clusters_arr = group_clusters(frontiers_arr);
 
-            std::vector<std::vector<GridCell, double>> cluster_centres = find_centres(clusters_arr);
+            std::vector<std::vector<ClusterInfo>> cluster_obj = find_centres(clusters_arr);
 
-            GridCell best_centre = select_cluster(cluster_centres);
+            WorldPoint robot_pos = get_robot_position();
+
+            // pass in parameters for converting to world coords
+            GridCell best_centre = select_cluster(cluster_obj, robot_pos, msg->info.resolution, msg->info.origin.position.x, msg->info.origin.position.y);
 
             visualization_msgs::msg::MarkerArray marker_array;
 
